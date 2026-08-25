@@ -1,0 +1,89 @@
+name: enterprise-agent-lab
+
+services:
+  localstack:
+    image: localstack/localstack:latest
+    container_name: enterprise-localstack
+
+    ports:
+      - "127.0.0.1:4566:4566"
+
+    environment:
+      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN}
+      AWS_DEFAULT_REGION: us-east-1
+      SERVICES: s3,dynamodb,lambda,apigateway,iam,logs,sts
+      DEBUG: "0"
+      LAMBDA_DOCKER_NETWORK: enterprise-agent-network
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    networks:
+      - enterprise-network
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: enterprise-ollama
+
+    ports:
+      - "127.0.0.1:11435:11434"
+
+    volumes:
+      - ollama-data:/root/.ollama
+
+    networks:
+      - enterprise-network
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: enterprise-qdrant
+
+    ports:
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
+
+    volumes:
+      - qdrant-data:/qdrant/storage
+
+    networks:
+      - enterprise-network
+
+  jaeger:
+    image: cr.jaegertracing.io/jaegertracing/jaeger:2.20.0
+    container_name: enterprise-jaeger
+
+    ports:
+      - "127.0.0.1:16686:16686"
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+
+    networks:
+      - enterprise-network
+
+  terraform:
+    image: hashicorp/terraform:1.15.9
+
+    profiles:
+      - tools
+
+    working_dir: /workspace/infrastructure/local
+
+    volumes:
+      - ./:/workspace
+
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ENDPOINT_URL: http://localstack:4566
+
+    networks:
+      - enterprise-network
+
+networks:
+  enterprise-network:
+    name: enterprise-agent-network
+
+volumes:
+  ollama-data:
+  qdrant-data:
